@@ -1,0 +1,49 @@
+# https://github.com/elastic/beats/blob/master/filebeat/filebeat.reference.yml
+
+filebeat.inputs:
+- type: container
+  enabled: true
+  paths:
+    -/var/lib/docker/containers/*/*.log
+  stream: all # can be all, stdout or stderr
+
+#========================== Filebeat autodiscover ==============================
+# See this URL on how to run Apache2 Filebeat module: # https://www.elastic.co/guide/en/beats/filebeat/current/running-on-docker.html
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      # https://www.elastic.co/guide/en/beats/filebeat/current/configuration-autodiscover-hints.html
+      # This URL alos contains instructions on multi-line logs
+      hints.enabled: true
+
+#================================ Processors ===================================
+processors:
+- add_docker_metadata: ~
+- add_locale:
+    format: offset
+- add_host_metadata:
+    netinfo.enabled: true
+
+#========================== Elasticsearch output ===============================
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "elastic"
+  password: "changeme"
+  pipeline: logfmt
+
+#============================== Dashboards =====================================
+setup.dashboards:
+  enabled: true
+  always_kibana: true 
+  retry.enabled: true
+
+#============================== Kibana =========================================
+setup.kibana:
+  host: "http://kibana:5601"
+  username: "elastic"
+  password: "changeme"
+
+#============================== Xpack Monitoring ===============================
+xpack.monitoring:
+  enabled: true
+  elasticsearch:

@@ -1,0 +1,15 @@
+{
+    "description": "logfmt",
+    "processors": [
+      {
+        "kv": {
+          "field": "message",
+          "field_split": "\\s(?![-_,:()\\w\\\"\\\\!\\/ ]+?(\\s+|\\d+|[,_\\.]+|$))",
+          "value_split": "(?<!\\\\)=",
+          "ignore_failure": true,
+          "ignore_missing": true,
+          "target_field": "fields"
+        }
+      }
+    ]
+  }

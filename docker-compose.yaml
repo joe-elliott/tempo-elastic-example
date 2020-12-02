@@ -1,0 +1,139 @@
+version: "3.3"
+
+services:
+  tempo:
+    image: grafana/tempo:50f076e5
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./config/tempo/tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "6831"       # jaeger ingest
+      - "3100:3100"  # tempo
+
+  tempo-query:
+    image: grafana/tempo-query:50f076e5
+    command: ["--grpc-storage-plugin.configuration-file=/etc/tempo-query.yaml"]
+    volumes:
+      - ./config/tempo/tempo-query.yaml:/etc/tempo-query.yaml
+    ports:
+      - "16686:16686"  # jaeger-ui
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./config/prometheus/:/etc/prometheus/
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:7.3.4
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/provisioning:/etc/grafana/provisioning
+      - ./config/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+
+  tns-app:
+    image: grafana/tns-app:latest
+    command:
+      - '-log.level=info'
+      - 'http://tns-db'
+    ports:
+      - "8002:80"
+    environment:
+      - JAEGER_AGENT_HOST=tempo
+      - JAEGER_TAGS="cluster=tns, namespace=tns, app=db"
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    depends_on: 
+      - tempo
+
+  tns-loadgen:
+    image: grafana/tns-loadgen:latest
+    command:
+      - '-log.level=info'
+      - 'http://tns-app'
+    ports:
+      - "8003:80"
+    environment:
+      - JAEGER_AGENT_HOST=tempo
+      - JAEGER_TAGS="cluster=tns, namespace=tns, app=loadgen"
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    depends_on: 
+      - tempo
+
+  tns-db:
+    image: grafana/tns-db
+    command:
+      - '-log.level=info'
+    ports:
+      - "8001:80"
+    environment:
+      - JAEGER_AGENT_HOST=tempo
+      - JAEGER_TAGS="cluster=tns, namespace=tns, app=tns"
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    depends_on: 
+      - tempo
+
+  elasticsearch:
+    image: elasticsearch:7.8.0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - type: bind
+        source: ./config/elk/elasticsearch/config/elasticsearch.yml
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
+        read_only: true
+      - type: volume
+        source: elasticsearch
+        target: /usr/share/elasticsearch/data
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ELASTIC_PASSWORD: changeme
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.3.1
+    volumes:
+      - type: bind
+        source: ./config/elk/kibana/config/kibana.yml
+        target: /usr/share/kibana/config/kibana.yml
+        read_only: true
+    ports:
+      - "5601:5601"
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.3.1
+    # https://github.com/docker/swarmkit/issues/1951
+    # Need to override user so we can access the log files, and docker.sock
+    user: root
+    volumes:
+      - type: bind
+        source: ./config/elk/filebeat/config/filebeat.yml
+        target: /usr/share/filebeat/filebeat.yml
+        read_only: true
+      - /var/run/docker.sock:/var/run/docker.sock
+      # This is needed for filebeat to load container log path as specified in filebeat.yml
+      - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
+    environment:
+      - ELASTICSEARCH_HOST="http://elasticsearch:9200"
+      - KIBANA_HOST="http://kibana:5601"
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=changeme
+    # disable strict permission checks
+    command: " sh -c 'sleep 30s && filebeat -e -strict.perms=false'"
+    depends_on: 
+      - kibana
+      - elasticsearch
+
+volumes:
+  filebeat:
+  elasticsearch:

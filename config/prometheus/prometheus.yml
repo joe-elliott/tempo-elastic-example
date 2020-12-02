@@ -1,0 +1,30 @@
+---
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ~
+global:
+  evaluation_interval: 1s
+  scrape_interval: 1s
+rule_files: ~
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+    - targets:
+        - "localhost:9090"
+  - job_name: tns-db
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - "tns-db"
+  - job_name: tns-app
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - "tns-app"
+  - job_name: tns-loadgen
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - "tns-loadgen"

@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+- name: 'TnsDemo'
+  orgId: 1
+  folder: 'TNS Demo Application'
+  type: file
+  disableDeletion: false
+  editable: true
+  updateIntervalSeconds: 10
+  options:
+    path: /var/lib/grafana/dashboards/tns
