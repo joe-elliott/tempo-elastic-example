@@ -26,3 +26,7 @@ This demo repo is a simple example of using Elasticsearch, Grafana and Tempo tog
    `container.image.name:"grafana/tns-app:latest" and _exists_:traceID`
 
 1. Expand the log line and click the Tempo link to go to Tempo.
+
+## TNS
+
+Code for the three TNS applications can be be found in this repo: https://github.com/grafana/tns/
