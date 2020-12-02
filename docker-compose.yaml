@@ -112,8 +112,6 @@ services:
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:7.3.1
-    # https://github.com/docker/swarmkit/issues/1951
-    # Need to override user so we can access the log files, and docker.sock
     user: root
     volumes:
       - type: bind
@@ -121,14 +119,13 @@ services:
         target: /usr/share/filebeat/filebeat.yml
         read_only: true
       - /var/run/docker.sock:/var/run/docker.sock
-      # This is needed for filebeat to load container log path as specified in filebeat.yml
       - /var/lib/docker/containers/:/var/lib/docker/containers/:ro
     environment:
       - ELASTICSEARCH_HOST="http://elasticsearch:9200"
       - KIBANA_HOST="http://kibana:5601"
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=changeme
-    # disable strict permission checks
+    # sleep 30s b/c otherwise it fails when it can't connect to kibana or elasticsearch or something
     command: " sh -c 'sleep 30s && filebeat -e -strict.perms=false'"
     depends_on: 
       - kibana
